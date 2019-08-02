@@ -1,0 +1,112 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using System.Linq;
+
+public class GameController : MonoBehaviour
+{
+
+	public Text questionDisplayText;
+	public Text scoreDisplayText;
+	public SimpleObjectPool answerButtonObjectPool;
+	public Transform answerButtonParent;
+	public GameObject questionDisplay;
+	public GameObject roundEndDisplay;
+
+	private DataController dataController;
+	private RoundData currentRoundData;
+	private QuestionData[] questionPool;
+
+	private bool isRoundActive;
+	private int questionIndex;
+	private int playerScore;
+	private List<GameObject> answerButtonGameObjects = new List<GameObject>();
+
+	private static List<QuestionData> pendingQuestions;
+
+    // Start is called before the first frame update
+    void Start()
+    {
+		dataController = FindObjectOfType<DataController>();
+		currentRoundData = dataController.GetCurrentRoundData();
+		questionPool = currentRoundData.questions;
+
+		if (pendingQuestions == null || pendingQuestions.Count == 0)
+		{
+			pendingQuestions = questionPool.ToList<QuestionData>();
+		}
+
+		playerScore = 0;
+		questionIndex = Random.Range(0, questionPool.Length);
+
+		ShowQuestion();
+		isRoundActive = true;
+	}
+
+	private void ShowQuestion()
+	{
+		RemoveAnswerButtons();
+		//QuestionData questionData = questionPool[questionIndex];
+		QuestionData questionData = pendingQuestions[questionIndex];
+		questionDisplayText.text = questionData.questionText;
+
+		pendingQuestions.RemoveAt(questionIndex);
+
+		for (int i = 0; i < questionData.answers.Length; i++)
+		{
+			GameObject answerButtonGameObject = answerButtonObjectPool.GetObject();
+			answerButtonGameObjects.Add(answerButtonGameObject);
+			answerButtonGameObject.transform.SetParent(answerButtonParent);
+
+			AnswerButton answerButton = answerButtonGameObject.GetComponent<AnswerButton>();
+			answerButton.Setup(questionData.answers[i]);
+		}
+	}
+
+	private void RemoveAnswerButtons()
+	{
+		while (answerButtonGameObjects.Count > 0)
+		{
+			answerButtonObjectPool.ReturnObject(answerButtonGameObjects[0]);
+			answerButtonGameObjects.RemoveAt(0);
+		}
+	}
+
+	public void AnswerButtonClicked (bool isCorrect)
+	{
+		if (isCorrect)
+		{
+			playerScore += currentRoundData.pointsAddedForCorrectAnswer;
+			scoreDisplayText.text = playerScore.ToString() + "/100";
+		}
+		if (pendingQuestions.Count > 0)
+		{
+			ShowQuestion();
+		}
+		else
+		{
+			EndRound();
+		}
+	}
+
+	public void EndRound()
+	{
+		isRoundActive = false;
+
+		questionDisplay.SetActive(false);
+		roundEndDisplay.SetActive(true);
+	}
+
+	public void ReturnToMenu()
+	{
+		SceneManager.LoadScene("MenuScreen");
+	}
+
+    // Update is called once per frame
+    void Update()
+    {
+        
+    }
+}
